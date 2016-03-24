@@ -1,0 +1,22 @@
+{
+  "intents": [
+    {
+        "intent": "GetClosestBikeIntent"
+    },
+    {
+        "intent": "AddAddressIntent",
+        "slots": [
+            {
+                "name": "Address",
+                "type": "ADDRESS"
+            }
+        ]
+    },
+    {
+        "intent": "FindBikeIntent"
+    },
+    {
+        "intent": "AMAZON.HelpIntent"
+    }
+  ]
+}

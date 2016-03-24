@@ -1,0 +1,29 @@
+{
+  "name": "citibike-alexa",
+  "version": "1.0.0",
+  "description": "Citibike Amazon Echo skill.",
+  "main": "index.js",
+  "dependencies": {
+    "aws-sdk": "^2.2.45",
+    "geolib": "^2.0.20",
+    "lodash": "^4.6.1",
+    "node-geocoder": "^3.9.0",
+    "promise": "^7.1.1",
+    "request-promise": "^2.0.1",
+    "rp": "^0.2.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kpeltzer/citibike-alexa.git"
+  },
+  "author": "Ken Peltzer",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kpeltzer/citibike-alexa/issues"
+  },
+  "homepage": "https://github.com/kpeltzer/citibike-alexa"
+}

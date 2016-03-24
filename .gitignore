@@ -1,0 +1,4 @@
+.DS_Store
+.env
+deploy.env
+node_modules/

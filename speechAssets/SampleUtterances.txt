@@ -1,0 +1,13 @@
+AddAddressIntent Add address {Address}
+AddAddressIntent add a address {Address}
+AddAddressIntent add an address {Address}
+AddAddressIntent add this address {Address}
+
+FindBikeIntent find me a bike
+FindBikeIntent find bikes
+FindBikeIntent find closest bike
+FindBikeIntent find me a close bike
+FindBikeIntent where is a close bike
+FindBikeIntent where's a bike
+FindBikeIntent where are there bikes
+FindBikeIntent where's the closest bike
