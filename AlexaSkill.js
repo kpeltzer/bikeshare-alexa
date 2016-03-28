@@ -153,6 +153,7 @@ Response.prototype = (function () {
         if (options.session && options.session.attributes) {
             returnResult.sessionAttributes = options.session.attributes;
         }
+
         return returnResult;
     };
 

@@ -8,8 +8,25 @@ var geocodeConfig = {
     apiKey: process.env.GOOGLE_API_KEY,
     formatter: null
 };
-    
 
+//Number of Bike Stations to associate with address
+var CLOSE_STATIONS_TO_RETURN = 5;
+
+/**
+ * Locales to ensure an address falls into range of a bike system. 
+ * @type {Object}
+ */
+var SYSTEM_LOCALES = {
+    'citibike' : [
+        'New York County',
+        'Kings County',
+        'Queens County',
+        'Richmond County',
+        'Bronx County'
+    ]
+};
+    
+//Required Modules
 var http = require('http'),
     https = require('https'),
     rp = require('request-promise'),
@@ -39,7 +56,8 @@ Citibike.prototype.eventHandlers.onSessionStarted = function (sessionStartedRequ
     console.log("Citibike onSessionStarted requestId: " + sessionStartedRequest.requestId
         + ", sessionId: " + session.sessionId);
     
-    session.attributes.stationPromise = getStationFeed();
+    //Load current feed on session start
+    stationPromise = getStationFeed();
 };
 
 Citibike.prototype.eventHandlers.onLaunch = function (launchRequest, session, response) {
@@ -61,6 +79,12 @@ Citibike.prototype.intentHandlers = {
     "AddAddressIntent" : function (intent, session, response) {
         handleAddAddressIntent(intent, session, response);
     },
+    "OverwriteAddressIntent" : function (intent, session, response) {
+        handleOverwriteAddressIntent(intent, session, response);
+    },
+    "KeepAddressIntent" : function (intent, session, response) {
+        handleKeepAddressIntent(intent, session, response);
+    },
     "AMAZON.HelpIntent": function (intent, session, response) {
         response.ask("You can say hello to me!", "You can say hello to me!");
     }
@@ -74,18 +98,30 @@ function handleLaunchRequest(session, response) {
 
 
      storage.loadAddress(session, function(address) {
-        console.log(address);
-        var speech = '';
+        var speech = '',
+            reprompt = '';
 
+        //TODO: Do a reprompt here
         if (address.data.zip === 0) {
+
             speech += "Welcome to Citibike. There is currently no address set for your home."
                 + "You can add one by asking me to add address, followed by your street address and your zipcode.";
+
+            reprompt += "<speak>Before you find any bikes, you first need to add an address. "
+                + "You can add one by asking me to add address, followed by your street address and your zipcode."
+                + "For example, you can say add address <say-as interpret-as\"address\">"
+                + "1234 Broadway, 10001.</say-as></speak>";
         }
         else {
             speech += "Welcome to City Bike. I have your address on file. You can ask me, where is the closest bike, or find me a bike."
+            reprompt +="<speak>Since I have your address on file, you can ask me, find me a bike, and I'll give you "
+                + "the closest station to you with bikes available.";
         }
 
-        response.tell(speech);
+        response.tell(
+            {speech: speech},
+            {speech: reprompt, type: AlexaSkill.speechOutputType.SSML}
+        );
 
 
     });
@@ -98,39 +134,65 @@ function handleLaunchRequest(session, response) {
 
 function handleFindBikeIntent(intent, session, response) {
 
+    var LOW_BIKE_THRESHOLD = 3;
+
     storage.loadAddress(session, function(address) {
         var speech = '',
             stationFeedPromise,
             closestStations,
             bikesAvailable = false,
+            bikeWord = 'bike',
             speechOutput = '';
 
         if (address.data.zip === 0) {
-            speech += "Welcome to Citibike. There is currently no address set for your home."
+            speech += "Welcome to City Bike. There is currently no address set for your home."
                 + "You can add one by asking me to add an address, followed by your street address and your zipcode.";
             response.tell(speech);
             return false;
         }
 
-        stationFeedPromise = session.attributes.stationPromise;
         closestStations = address.data.closestStations;
 
-        stationFeedPromise.then(function(feed) {
+        stationPromise.then(function(feed) {
 
             //Run through each station and determine if it has bikes.
-            //TODO: Handle if the station has only a few bikes left
-            var currentStationData = {};
+            var currentStationData = {},
+                availableBikes,
+                lowBikeThreshold = false,
+                stationAddress = '';
             _.some(closestStations, function(station) { 
+
                 currentStationData = _.find(feed, ['id', station.id]);
 
-                //TODO: Handle if station isn't in feed
+                //Saved station isn't in feed
+                if (_.isUndefined(currentStationData)) {
+                    return false;
+                }
 
-                //TODO: Handle if bikes are low
-                if (currentStationData.availableBikes > 0) {
+                availableBikes = currentStationData.availableBikes;
+
+                if (availableBikes > 0) {
                     bikesAvailable = true;
-                    speechOutput += currentStationData.stationName 
+                    bikeWord += availableBikes === 1 ? '' : 's';
+                    stationAddress = formatBikeStationAddress(currentStationData.stationName);
+
+                    if (lowBikeThreshold) {
+                        lowBikeThreshold = false;
+                        speechOutput += "<speak>The next closest station"
+                            + "with bikes available is" + stationAddress
+                            + "</speak>";
+                    }
+
+                    speechOutput += "<speak>"
+                        + stationAddress
                         + " has " + currentStationData.availableBikes
-                        + " bikes available."
+                        + " " + bikeWord + " available.</speak>";
+
+                    if (availableBikes <= LOW_BIKE_THRESHOLD) {
+                        lowBikeThreshold = true;
+                        return false;
+                    }
+
                     return true;
                 }
                 //Next iteration
@@ -140,10 +202,13 @@ function handleFindBikeIntent(intent, session, response) {
             });
 
             if (!bikesAvailable) {
-                speechOutput = "No bikes were availble near you."
+                speechOutput = "<speak>No bikes were availble near you.</speak>"
             }
 
-            response.tell(speechOutput);
+            response.tell({
+                speech: speechOutput,
+                type: AlexaSkill.speechOutputType.SSML
+            });
         });
 
     });
@@ -153,26 +218,73 @@ function handleAddAddressIntent(intent, session, response) {
 
     storage.loadAddress(session, function(currentAddress) {
 
-        //TODO: Handle address already saved 
-        //
-        //TODO: Handle empty address here
-        if (intent.slots.Address.value === undefined) {
+        var address,
+            hasOverwrittenAddress = !_.isUndefined(session.attributes.overwrittenAddress);
 
+        /** If an address is already saved for the user, we'll prompt
+        to overwrite.  */
+        if (currentAddress.data.formattedAddress && !hasOverwrittenAddress) {
+            session.attributes.overwrittenAddress = intent.slots.Address.value;
+            response.ask("Looks like you already have an address saved."
+                + "Do you want to overwrite it?");
         }
 
+        //Use overwritten address first if it exists, and then use the one passed in the intent. 
+        address = hasOverwrittenAddress ? session.attributes.overwrittenAddress : intent.slots.Address.value;
+
+        if (_.isUndefined(address)) {
+            response.tell("Looks like I couldn't understand your address."
+                + "Please try asking to add again.");
+        }
         
         //Use Google Geocode service to attach a latitude/longitude
-        geocoder.geocode(intent.slots.Address.value)
+        geocoder.geocode(address)
             .then(function(res) {
-                saveNewAddress(res, currentAddress, session, response);
+
+                console.log(res);
+                var address = res[0];
+
+                addressInLocale = isAddressInLocale(
+                    'citibike',
+                    address.administrativeLevels.level2long
+                );
+
+                //TODO: Make sure address is in New York City
+                if (!addressInLocale) {
+                    response.tell("Sorry, this service is only available"
+                        + " for addresses in New York City."
+                    );
+                }
+    
+                saveNewAddress(address, currentAddress, session, response);
             })
             .catch(function(err) {
-                //TODO: Handle no address found
+                console.log(err);
+                response.tell("Sorry, I'm unable to lookup your address."
+                    + "Please try again."
+                );
 
             });
 
     });
 
+}
+
+function handleOverwriteAddressIntent(intent, session, response) {
+
+    //Check to make sure we have an address to overwrite
+    if (!session.attributes.overwrittenAddress) {
+        response.tell("I'm sorry, but I don't know which question you are "
+            + "answering yes to.");
+        return false;
+    }
+
+    //Call the original function to save an address
+    handleAddAddressIntent(intent, session, response);
+}
+
+function handleKAddressIntent(intent, session, response) {
+    response.tell("Ok. I'll keep your current address.");
 }
 
 function handleAddressQueryIntent(intent, session, response) {
@@ -183,7 +295,6 @@ function handleAddressQueryIntent(intent, session, response) {
  * Citibike specific functions
  */
 
-var CLOSE_STATIONS_TO_RETURN = 5;
 
 function getClosestStations(stations, lat, long) {
 
@@ -247,36 +358,75 @@ function getStationFeed () {
     return stationPromise;
 }
 
-function saveNewAddress (geocodeRes, currentAddress, session, response) {
+function saveNewAddress (firstAddress, currentAddress, session, response) {
 
-    if (geocodeRes.length) {
-        var firstAddress = geocodeRes[0];
+    var speechOutput = '',
+        saveWord = session.attributes.overwrittenAddress ? 'overwritten' : 'saved';
 
-        currentAddress.data = _.merge(currentAddress.data, {
-            latitude: firstAddress.latitude,
-            longitude: firstAddress.longitude,
-            formattedAddress: firstAddress.formattedAddress
-        });
 
-        //Find the closest stations
-        session.attributes.stationPromise.then(function(stations) {
+    currentAddress.data = _.merge(currentAddress.data, {
+        latitude: firstAddress.latitude,
+        longitude: firstAddress.longitude,
+        formattedAddress: firstAddress.formattedAddress
+    });
 
-            currentAddress.data.closestStations = getClosestStations(stations, firstAddress.latitude, firstAddress.longitude);
+    //Find the closest stations
+    stationPromise.then(function(stations) {
 
-            currentAddress.save(function() {
+        currentAddress.data.closestStations = getClosestStations(stations, firstAddress.latitude, firstAddress.longitude);
 
-                var speechOutput = "OK. Your address has been saved as " 
-                + firstAddress.formattedAddress + ". You can now ask, "
-                + "find me the closest bike."
+        currentAddress.save(function() {
 
-                response.tell(speechOutput);
-                return;
+            speechOutput += "<speak>Your address has been " + saveWord + " as " 
+            + "<say-as interpret-as=\"address\">" 
+            + firstAddress.formattedAddress + "</say-as>. You can now ask, "
+            + "find me the closest bike.</speak>"
+
+            response.tell({
+                speech: speechOutput,
+                type: AlexaSkill.speechOutputType.SSML
             });
-        });
 
-    }
-    
+        });
+    });
+  
 }
+
+/**
+ * [isAddressInLocale description]
+ * @param  {string} system Which Bike System to check against. 
+ * @param  {string} locale The locale the address is in. 
+ * @return {boolean}        True if address is in locale, false if not. 
+ */
+function isAddressInLocale(system, locale) {
+
+    if (!_.isUndefined(SYSTEM_LOCALES[system])) {
+        return !!_.find(SYSTEM_LOCALES[system],function(o) {
+            return o === locale;
+        });
+    }
+
+    return false;
+}
+
+/**
+ * Takes the Bike Station address from the API and formats it into SSML
+ * so Alexa can properly pronounce/speak it. 
+ * @param  {string} address The address of the bike station from the API. 
+ * @return {string}         The formatted address.
+ */
+function formatBikeStationAddress(address) {
+
+    //Replace '&' symbol
+    address = address
+    .replace('&', 'and')
+    //Wrap numbers in ordinal tags
+    .replace(/\b(\d+)\b/g, '<say-as interpret-as=\"ordinal\">$1</say-as>');
+
+    return '<say-as interpret-as=\"address\">'
+    + address + '</say-as>';
+}
+
 
 // Create the handler that responds to the Alexa Request.
 exports.handler = function (event, context) {

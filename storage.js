@@ -70,6 +70,7 @@ var storage = (function () {
                     address = new Address(session);
                     callback(address);
                 } else if (data.Item === undefined) {
+                    console.log('No address found');
                     address = new Address(session);
                     callback(address);
                 } else {

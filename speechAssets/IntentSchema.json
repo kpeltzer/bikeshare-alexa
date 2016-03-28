@@ -16,6 +16,12 @@
         "intent": "FindBikeIntent"
     },
     {
+        "intent": "OverwriteAddressIntent"
+    },
+    {
+        "intent": "KeepAddressIntent"
+    },
+    {
         "intent": "AMAZON.HelpIntent"
     }
   ]
