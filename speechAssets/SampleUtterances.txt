@@ -2,6 +2,9 @@ AddAddressIntent Add address {Address}
 AddAddressIntent add a address {Address}
 AddAddressIntent add an address {Address}
 AddAddressIntent add this address {Address}
+AddAddressIntent add address
+AddAddressIntent add an address
+AddAddressIntent add a address
 AddAddressIntent {Address}
 AddAddressIntent add {Address}
 

@@ -1,7 +1,7 @@
 {
-  "name": "citibike-alexa",
+  "name": "bikeshare-alexa",
   "version": "1.0.0",
-  "description": "Citibike Amazon Echo skill.",
+  "description": "Bike Share Amazon Echo skill.",
   "main": "index.js",
   "dependencies": {
     "aws-sdk": "^2.2.45",
@@ -18,12 +18,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/kpeltzer/citibike-alexa.git"
+    "url": "https://github.com/kpeltzer/bikeshare-alexa.git"
   },
   "author": "Ken Peltzer",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/kpeltzer/citibike-alexa/issues"
+    "url": "https://github.com/kpeltzer/bikeshare-alexa/issues"
   },
-  "homepage": "https://github.com/kpeltzer/citibike-alexa"
+  "homepage": "https://github.com/kpeltzer/bikeshare-alexa"
 }

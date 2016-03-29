@@ -12,6 +12,9 @@ var geocodeConfig = {
 //Number of Bike Stations to associate with address
 var CLOSE_STATIONS_TO_RETURN = 5;
 
+//If a station has this many bikes or less, it is considered almost empty. 
+var LOW_BIKE_THRESHOLD = 6;
+
 /**
  * Locales to ensure an address falls into range of a bike system. 
  * @type {Object}
@@ -42,36 +45,36 @@ var http = require('http'),
 var AlexaSkill = require('./AlexaSkill');
 
 /**
- * Citibike is a child of AlexaSkill.
+ * Bikeshare is a child of AlexaSkill.
 */
-var Citibike = function () {
+var Bikeshare = function () {
     AlexaSkill.call(this, APP_ID);
 };
 
 // Extend AlexaSkill
-Citibike.prototype = Object.create(AlexaSkill.prototype);
-Citibike.prototype.constructor = Citibike;
+Bikeshare.prototype = Object.create(AlexaSkill.prototype);
+Bikeshare.prototype.constructor = Bikeshare;
 
-Citibike.prototype.eventHandlers.onSessionStarted = function (sessionStartedRequest, session) {
-    console.log("Citibike onSessionStarted requestId: " + sessionStartedRequest.requestId
+Bikeshare.prototype.eventHandlers.onSessionStarted = function (sessionStartedRequest, session) {
+    console.log("Bikeshare onSessionStarted requestId: " + sessionStartedRequest.requestId
         + ", sessionId: " + session.sessionId);
     
     //Load current feed on session start
     stationPromise = getStationFeed();
 };
 
-Citibike.prototype.eventHandlers.onLaunch = function (launchRequest, session, response) {
-    console.log("Citibike onLaunch requestId: " + launchRequest.requestId + ", sessionId: " + session.sessionId);
+Bikeshare.prototype.eventHandlers.onLaunch = function (launchRequest, session, response) {
+    console.log("Bikeshare onLaunch requestId: " + launchRequest.requestId + ", sessionId: " + session.sessionId);
     handleLaunchRequest(session, response);
 };
 
-Citibike.prototype.eventHandlers.onSessionEnded = function (sessionEndedRequest, session) {
-    console.log("Citibike onSessionEnded requestId: " + sessionEndedRequest.requestId
+Bikeshare.prototype.eventHandlers.onSessionEnded = function (sessionEndedRequest, session) {
+    console.log("Bikeshare onSessionEnded requestId: " + sessionEndedRequest.requestId
         + ", sessionId: " + session.sessionId);
     // any cleanup logic goes here
 };
 
-Citibike.prototype.intentHandlers = {
+Bikeshare.prototype.intentHandlers = {
     // register custom intent handlers
     "FindBikeIntent": function (intent, session, response) {
         handleFindBikeIntent(intent, session, response);
@@ -86,7 +89,7 @@ Citibike.prototype.intentHandlers = {
         handleKeepAddressIntent(intent, session, response);
     },
     "AMAZON.HelpIntent": function (intent, session, response) {
-        response.ask("You can say hello to me!", "You can say hello to me!");
+        handleHelpIntent(intent, session, response);
     }
 };
 
@@ -98,28 +101,28 @@ function handleLaunchRequest(session, response) {
 
 
      storage.loadAddress(session, function(address) {
-        var speech = '',
+        var speechOutput = '',
             reprompt = '';
 
         //TODO: Do a reprompt here
-        if (address.data.zip === 0) {
+        if (_.isEmpty(address.data.formattedAddress)) {
 
-            speech += "Welcome to Citibike. There is currently no address set for your home."
+            speechOutput += "Welcome to Bike Share. I currently support City Bike in New York City. There is currently no address set for your home."
                 + "You can add one by asking me to add address, followed by your street address and your zipcode.";
 
             reprompt += "<speak>Before you find any bikes, you first need to add an address. "
                 + "You can add one by asking me to add address, followed by your street address and your zipcode."
-                + "For example, you can say add address <say-as interpret-as\"address\">"
-                + "1234 Broadway, 10001.</say-as></speak>";
+                + "For example, you can say add address <say-as interpret-as=\"address\">"
+                + "<say-as interpret-as=\"characters\">1234</say-as> Broadway, 10001.</say-as></speak>";
         }
         else {
-            speech += "Welcome to City Bike. I have your address on file. You can ask me, where is the closest bike, or find me a bike."
+            speechOutput += "Welcome to Bike Share. I have your address on file. You can now ask me, find me a bike."
             reprompt +="<speak>Since I have your address on file, you can ask me, find me a bike, and I'll give you "
                 + "the closest station to you with bikes available.";
         }
 
         response.tell(
-            {speech: speech},
+            {speech: speechOutput},
             {speech: reprompt, type: AlexaSkill.speechOutputType.SSML}
         );
 
@@ -134,20 +137,28 @@ function handleLaunchRequest(session, response) {
 
 function handleFindBikeIntent(intent, session, response) {
 
-    var LOW_BIKE_THRESHOLD = 3;
-
     storage.loadAddress(session, function(address) {
-        var speech = '',
-            stationFeedPromise,
+        var stationFeedPromise,
             closestStations,
             bikesAvailable = false,
-            bikeWord = 'bike',
-            speechOutput = '';
+            bikeWord,
+            speechOutput = "<speak>",
+            reprompt
 
-        if (address.data.zip === 0) {
-            speech += "Welcome to City Bike. There is currently no address set for your home."
-                + "You can add one by asking me to add an address, followed by your street address and your zipcode.";
-            response.tell(speech);
+        if (_.isEmpty(address.data.formattedAddress)) {
+
+            speechOutput += "Welcome to bike share. There is currently no address set for your home."
+                + " You can add one by asking me to add an address, followed by your street address and your zipcode.</speak>";
+
+            reprompt += "<speak>Before you find any bikes, you first need to add an address. "
+                + "You can add one by asking me to add address, followed by your street address and your zipcode."
+                + "For example, you can say add address <say-as interpret-as=\"address\">"
+                + "1234 Broadway, 10001.</say-as></speak>";
+
+            response.tell(
+                {speech: speechOutput, type: AlexaSkill.speechOutputType.SSML},
+                {speech: reprompt, type: AlexaSkill.speechOutputType.SSML}
+            );
             return false;
         }
 
@@ -160,6 +171,7 @@ function handleFindBikeIntent(intent, session, response) {
                 availableBikes,
                 lowBikeThreshold = false,
                 stationAddress = '';
+
             _.some(closestStations, function(station) { 
 
                 currentStationData = _.find(feed, ['id', station.id]);
@@ -173,21 +185,22 @@ function handleFindBikeIntent(intent, session, response) {
 
                 if (availableBikes > 0) {
                     bikesAvailable = true;
-                    bikeWord += availableBikes === 1 ? '' : 's';
+                    bikeWord = availableBikes === 1 ? 'bike' : 'bikes';
                     stationAddress = formatBikeStationAddress(currentStationData.stationName);
 
                     if (lowBikeThreshold) {
                         lowBikeThreshold = false;
-                        speechOutput += "<speak>The next closest station"
-                            + "with bikes available is" + stationAddress
-                            + "</speak>";
+                        speechOutput += "The next closest station"
+                            + " with bikes available is" + stationAddress + ". ";
+                        stationAddress = "That station";
                     }
 
-                    speechOutput += "<speak>"
-                        + stationAddress
+                    speechOutput += 
+                        stationAddress
                         + " has " + currentStationData.availableBikes
-                        + " " + bikeWord + " available.</speak>";
+                        + " " + bikeWord + " available. ";
 
+                    /** Station has low bikes available. Make another loop to get the next station as well. */
                     if (availableBikes <= LOW_BIKE_THRESHOLD) {
                         lowBikeThreshold = true;
                         return false;
@@ -202,8 +215,10 @@ function handleFindBikeIntent(intent, session, response) {
             });
 
             if (!bikesAvailable) {
-                speechOutput = "<speak>No bikes were availble near you.</speak>"
+                speechOutput = "<speak>No bikes were availble near you."
             }
+
+            speechOutput += "</speak>";
 
             response.tell({
                 speech: speechOutput,
@@ -226,17 +241,26 @@ function handleAddAddressIntent(intent, session, response) {
         if (currentAddress.data.formattedAddress && !hasOverwrittenAddress) {
             session.attributes.overwrittenAddress = intent.slots.Address.value;
             response.ask("Looks like you already have an address saved."
-                + "Do you want to overwrite it?");
+                + " Do you want to overwrite it?");
         }
 
         //Use overwritten address first if it exists, and then use the one passed in the intent. 
         address = hasOverwrittenAddress ? session.attributes.overwrittenAddress : intent.slots.Address.value;
 
         if (_.isUndefined(address)) {
-            response.tell("Looks like I couldn't understand your address."
-                + "Please try asking to add again.");
+            var speech = "<speak>Which address do you want me to add? Tell me the street address," 
+                + " followed by the zipcode.</speak>";
+
+            response.ask({
+                speech: speech,
+                type: AlexaSkill.speechOutputType.SSML
+            });
+
+            return false;
         }
         
+        console.log(address);
+
         //Use Google Geocode service to attach a latitude/longitude
         geocoder.geocode(address)
             .then(function(res) {
@@ -251,8 +275,8 @@ function handleAddAddressIntent(intent, session, response) {
 
                 //TODO: Make sure address is in New York City
                 if (!addressInLocale) {
-                    response.tell("Sorry, this service is only available"
-                        + " for addresses in New York City."
+                    response.tell("Sorry, this service is currently only available"
+                        + " for City Bike in New York City. Stay tuned for more Bike Share systems soon."
                     );
                 }
     
@@ -261,7 +285,7 @@ function handleAddAddressIntent(intent, session, response) {
             .catch(function(err) {
                 console.log(err);
                 response.tell("Sorry, I'm unable to lookup your address."
-                    + "Please try again."
+                    + " Please try again."
                 );
 
             });
@@ -283,8 +307,35 @@ function handleOverwriteAddressIntent(intent, session, response) {
     handleAddAddressIntent(intent, session, response);
 }
 
-function handleKAddressIntent(intent, session, response) {
+function handleKeepAddressIntent(intent, session, response) {
     response.tell("Ok. I'll keep your current address.");
+}
+
+function handleHelpIntent(intent, session, response) {
+    storage.loadAddress(session, function(address) {
+        var speechOutput = "<speak>";
+
+        //TODO: Do a reprompt here
+        if (_.isEmpty(address.data.formattedAddress)) {
+
+            speechOutput += "Welcome to Bike Share. I currently support City Bike in New York City."
+                + " Before you find any bikes, you first need to add an address."
+                + " You can add one by asking me to add address, followed by your street address and your zipcode."
+                + " For example, you can say add address <break time=\"300ms\"/><say-as interpret-as=\"address\">"
+                + "<say-as interpret-as=\"characters\">1234</say-as> Broadway, 10001.</say-as></speak>";
+        }
+        else {
+            speechOutput +="<speak>I have your address on file. You can now ask me, find me a bike, and I'll give you "
+                + "the closest station to you with bikes available. If you need to change your address, just ask me to add address,"
+                + " and I'll give you a chance to overwrite it.";
+        }
+
+        response.tell(
+            {speech: speechOutput, type: AlexaSkill.speechOutputType.SSML}
+        );
+
+
+    });
 }
 
 function handleAddressQueryIntent(intent, session, response) {
@@ -292,7 +343,7 @@ function handleAddressQueryIntent(intent, session, response) {
 }
 
 /**
- * Citibike specific functions
+ * Bikeshare specific functions
  */
 
 
@@ -380,7 +431,7 @@ function saveNewAddress (firstAddress, currentAddress, session, response) {
             speechOutput += "<speak>Your address has been " + saveWord + " as " 
             + "<say-as interpret-as=\"address\">" 
             + firstAddress.formattedAddress + "</say-as>. You can now ask, "
-            + "find me the closest bike.</speak>"
+            + "find me a bike.</speak>"
 
             response.tell({
                 speech: speechOutput,
@@ -430,9 +481,9 @@ function formatBikeStationAddress(address) {
 
 // Create the handler that responds to the Alexa Request.
 exports.handler = function (event, context) {
-    // Create an instance of the Citibike skill.
-    var citibike = new Citibike();
-    citibike.execute(event, context);
+    // Create an instance of the Bikeshare skill.
+    var bikeshare = new Bikeshare();
+    bikeshare.execute(event, context);
 };
 
 

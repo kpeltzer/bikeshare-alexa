@@ -1,2 +1,2 @@
-# citibike-alexa
-Citibike Amazon Echo skill. 
+# bikeshare-alexa
+Bikeshare Amazon Echo skill. 
