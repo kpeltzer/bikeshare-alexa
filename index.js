@@ -13,7 +13,11 @@ var geocodeConfig = {
 var CLOSE_STATIONS_TO_RETURN = 5;
 
 //If a station has this many bikes or less, it is considered almost empty. 
-var LOW_BIKE_THRESHOLD = 6;
+var LOW_BIKE_THRESHOLD = 3;
+
+//The amount of additional stations to return, if the inital station has less than the threshold
+//of bikes available. 
+var MAX_ADDITIONAL_STATIONS = 2;
 
 /**
  * Locales to ensure an address falls into range of a bike system. 
@@ -107,8 +111,8 @@ function handleLaunchRequest(session, response) {
         //TODO: Do a reprompt here
         if (_.isEmpty(address.data.formattedAddress)) {
 
-            speechOutput += "Welcome to Bike Share. I currently support City Bike in New York City. There is currently no address set for your home."
-                + "You can add one by asking me to add address, followed by your street address and your zipcode.";
+            speechOutput += "Welcome to Bike Share. I currently support City Bike in New York City. There is no address set for your home."
+                + " You can add one by saying ask bike share add address, followed by your street address and your zipcode.";
 
             reprompt += "<speak>Before you find any bikes, you first need to add an address. "
                 + "You can add one by asking me to add address, followed by your street address and your zipcode."
@@ -116,7 +120,7 @@ function handleLaunchRequest(session, response) {
                 + "<say-as interpret-as=\"characters\">1234</say-as> Broadway, 10001.</say-as></speak>";
         }
         else {
-            speechOutput += "Welcome to Bike Share. I have your address on file. You can now ask me, find me a bike."
+            speechOutput += "Welcome to Bike Share. I have your address on file. You can now say, ask bike share to find me a bike."
             reprompt +="<speak>Since I have your address on file, you can ask me, find me a bike, and I'll give you "
                 + "the closest station to you with bikes available.";
         }
@@ -170,6 +174,7 @@ function handleFindBikeIntent(intent, session, response) {
             var currentStationData = {},
                 availableBikes,
                 lowBikeThreshold = false,
+                additionalStations = MAX_ADDITIONAL_STATIONS;
                 stationAddress = '';
 
             _.some(closestStations, function(station) { 
@@ -189,6 +194,8 @@ function handleFindBikeIntent(intent, session, response) {
                     stationAddress = formatBikeStationAddress(currentStationData.stationName);
 
                     if (lowBikeThreshold) {
+
+                        additionalStations--;
                         lowBikeThreshold = false;
                         speechOutput += "The next closest station"
                             + " with bikes available is" + stationAddress + ". ";
@@ -201,7 +208,7 @@ function handleFindBikeIntent(intent, session, response) {
                         + " " + bikeWord + " available. ";
 
                     /** Station has low bikes available. Make another loop to get the next station as well. */
-                    if (availableBikes <= LOW_BIKE_THRESHOLD) {
+                    if (availableBikes <= LOW_BIKE_THRESHOLD && additionalStations > 0) {
                         lowBikeThreshold = true;
                         return false;
                     }
@@ -234,22 +241,42 @@ function handleAddAddressIntent(intent, session, response) {
     storage.loadAddress(session, function(currentAddress) {
 
         var address,
-            hasOverwrittenAddress = !_.isUndefined(session.attributes.overwrittenAddress);
+            overwrittenAddress = _.get(session, "attributes.overwrittenAddress"),
+            promptToOverwrite = _.get(session, "attributes.promptToOverwrite"),
+            slotAddress = _.get(intent, "slots.Address.value");
 
         /** If an address is already saved for the user, we'll prompt
         to overwrite.  */
-        if (currentAddress.data.formattedAddress && !hasOverwrittenAddress) {
-            session.attributes.overwrittenAddress = intent.slots.Address.value;
+        if (currentAddress.data.formattedAddress && !promptToOverwrite) {
+
+            session.attributes.promptToOverwrite = true;
+
+            if (slotAddress) {
+                session.attributes.overwrittenAddress = slotAddress;
+            }
+
             response.ask("Looks like you already have an address saved."
                 + " Do you want to overwrite it?");
+
+            return false;
         }
 
-        //Use overwritten address first if it exists, and then use the one passed in the intent. 
-        address = hasOverwrittenAddress ? session.attributes.overwrittenAddress : intent.slots.Address.value;
+        if (overwrittenAddress) {
+            address = session.attributes.overwrittenAddress;
+        }
+        else if (slotAddress) {
+            address = intent.slots.Address.value;
+        }
+        else {
+            address = undefined;
+        }
 
-        if (_.isUndefined(address)) {
+        if (_.isUndefined(address) || _.isEmpty(address)) {
             var speech = "<speak>Which address do you want me to add? Tell me the street address," 
                 + " followed by the zipcode.</speak>";
+
+            //Empty out any potentially overwritten addresses
+            session.attributes.overwrittenAddress = undefined;
 
             response.ask({
                 speech: speech,
@@ -259,13 +286,11 @@ function handleAddAddressIntent(intent, session, response) {
             return false;
         }
         
-        console.log(address);
 
         //Use Google Geocode service to attach a latitude/longitude
         geocoder.geocode(address)
             .then(function(res) {
 
-                console.log(res);
                 var address = res[0];
 
                 addressInLocale = isAddressInLocale(
@@ -273,11 +298,12 @@ function handleAddAddressIntent(intent, session, response) {
                     address.administrativeLevels.level2long
                 );
 
-                //TODO: Make sure address is in New York City
                 if (!addressInLocale) {
                     response.tell("Sorry, this service is currently only available"
                         + " for City Bike in New York City. Stay tuned for more Bike Share systems soon."
                     );
+
+                    return false;
                 }
     
                 saveNewAddress(address, currentAddress, session, response);
@@ -297,7 +323,7 @@ function handleAddAddressIntent(intent, session, response) {
 function handleOverwriteAddressIntent(intent, session, response) {
 
     //Check to make sure we have an address to overwrite
-    if (!session.attributes.overwrittenAddress) {
+    if (!session.attributes.promptToOverwrite) {
         response.tell("I'm sorry, but I don't know which question you are "
             + "answering yes to.");
         return false;

@@ -1,23 +1,44 @@
-AddAddressIntent Add address {Address}
+AddAddressIntent add address {Address}
 AddAddressIntent add a address {Address}
 AddAddressIntent add an address {Address}
 AddAddressIntent add this address {Address}
+AddAddressIntent add my address {Address}
 AddAddressIntent add address
 AddAddressIntent add an address
 AddAddressIntent add a address
+AddAddressIntent add my address
+AddAddressIntent save address {Address}
+AddAddressIntent save a address {Address}
+AddAddressIntent save an address {Address}
+AddAddressIntent save this address {Address}
+AddAddressIntent save my address {Address}
+AddAddressIntent save address
+AddAddressIntent save an address
+AddAddressIntent save a address
+AddAddressIntent save my address
 AddAddressIntent {Address}
 AddAddressIntent add {Address}
+AddAddressIntent to add {Address}
+AddAddressIntent to add address
+AddAddressIntent to add my {Address}
+AddAddressIntent to add my address
 
 FindBikeIntent find me a bike
 FindBikeIntent find a bike
 FindBikeIntent find bikes
 FindBikeIntent find closest bike
 FindBikeIntent find me a close bike
+FindBikeIntent to find me a bike
+FindBikeIntent to find a bike
+FindBikeIntent to find bikes
+FindBikeIntent to find closest bike
+FindBikeIntent find me a close bike
 FindBikeIntent where is a close bike
 FindBikeIntent where's a bike
 FindBikeIntent where are there bikes
 FindBikeIntent where's the closest bike
 FindBikeIntent where is there a bike
+FindBikeIntent where is there a close bike
 
 OverwriteAddressIntent yes
 OverwriteAddressIntent yep
