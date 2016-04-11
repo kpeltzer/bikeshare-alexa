@@ -22,10 +22,15 @@ AddAddressIntent to add {Address}
 AddAddressIntent to add address
 AddAddressIntent to add my {Address}
 AddAddressIntent to add my address
-AddAddressIntent Three Five Zero fifth avenue one zero one one eight
 AddAddressIntent Change my address
 AddAddressIntent Change address
 AddAddressIntent Change the address
+AddAddressIntent Change my address to {Address}
+AddAddressIntent Change address to {Address}
+AddAddressIntent Change the address to {Address}
+AddAddressIntent Change my address {Address}
+AddAddressIntent Change address {Address}
+AddAddressIntent Change the address {Address}
 
 FindBikeIntent find me a bike
 FindBikeIntent find a bike

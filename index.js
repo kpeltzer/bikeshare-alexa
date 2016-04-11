@@ -268,11 +268,14 @@ function handleAddAddressIntent(intent, session, response) {
             address = session.attributes.overwrittenAddress;
         }
         else if (slotAddress) {
-            address = intent.slots.Address.value;
+            address = slotAddress;
         }
         else {
             address = undefined;
         }
+
+        console.log(address);
+        console.log(intent);
 
         if (_.isUndefined(address) || _.isEmpty(address)) {
             var speech = "<speak>Which address do you want me to add? Tell me the street address," 
@@ -294,6 +297,10 @@ function handleAddAddressIntent(intent, session, response) {
             .then(function(res) {
 
                 var address = res[0];
+
+                if (!address.administrativeLevels) {
+                    response.ask("Sorry, I had trouble understanding your address. Can you please repeat it?");
+                }
 
                 addressInLocale = isAddressInLocale(
                     'citibike',
@@ -369,7 +376,7 @@ function handleHelpIntent(intent, session, response) {
 }
 
 function handleStopIntent(intent, session, response) {
-    response.tell("Goodbye.");
+    response.tell("Goodbye");
 }
 
 /**
