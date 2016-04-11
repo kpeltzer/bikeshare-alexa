@@ -86,14 +86,17 @@ Bikeshare.prototype.intentHandlers = {
     "AddAddressIntent" : function (intent, session, response) {
         handleAddAddressIntent(intent, session, response);
     },
-    "OverwriteAddressIntent" : function (intent, session, response) {
+    "AMAZON.YesIntent" : function (intent, session, response) {
         handleOverwriteAddressIntent(intent, session, response);
     },
-    "KeepAddressIntent" : function (intent, session, response) {
+    "AMAZON.NoIntent" : function (intent, session, response) {
         handleKeepAddressIntent(intent, session, response);
     },
     "AMAZON.HelpIntent": function (intent, session, response) {
         handleHelpIntent(intent, session, response);
+    },
+    "AMAZON.StopIntent": function (intent, session, response) {
+        handleStopIntent(intent, session, response);
     }
 };
 
@@ -112,7 +115,7 @@ function handleLaunchRequest(session, response) {
         if (_.isEmpty(address.data.formattedAddress)) {
 
             speechOutput += "Welcome to Bike Share. I currently support City Bike in New York City. There is no address set for your home."
-                + " You can add one by saying ask bike share add address, followed by your street address and your zipcode.";
+                + " You can add one by telling me to add an address, followed by your street address and your zipcode.";
 
             reprompt += "<speak>Before you find any bikes, you first need to add an address. "
                 + "You can add one by asking me to add address, followed by your street address and your zipcode."
@@ -286,7 +289,6 @@ function handleAddAddressIntent(intent, session, response) {
             return false;
         }
         
-
         //Use Google Geocode service to attach a latitude/longitude
         geocoder.geocode(address)
             .then(function(res) {
@@ -299,6 +301,7 @@ function handleAddAddressIntent(intent, session, response) {
                 );
 
                 if (!addressInLocale) {
+                    console.log("Address Error:" + address);
                     response.tell("Sorry, this service is currently only available"
                         + " for City Bike in New York City. Stay tuned for more Bike Share systems soon."
                     );
@@ -338,22 +341,23 @@ function handleKeepAddressIntent(intent, session, response) {
 }
 
 function handleHelpIntent(intent, session, response) {
+
     storage.loadAddress(session, function(address) {
         var speechOutput = "<speak>";
 
         //TODO: Do a reprompt here
         if (_.isEmpty(address.data.formattedAddress)) {
 
-            speechOutput += "Welcome to Bike Share. I currently support City Bike in New York City."
-                + " Before you find any bikes, you first need to add an address."
-                + " You can add one by asking me to add address, followed by your street address and your zipcode."
+            speechOutput += "Welcome to Bike Share. I help you find the closest bikes in your local bike share system."
+                + " Before you find any bikes, you first need to tell me where this Echo is located."
+                + " You can tell me to add an address, followed by your street address and your zipcode."
                 + " For example, you can say add address <break time=\"300ms\"/><say-as interpret-as=\"address\">"
                 + "<say-as interpret-as=\"characters\">1234</say-as> Broadway, 10001.</say-as></speak>";
         }
         else {
-            speechOutput +="<speak>I have your address on file. You can now ask me, find me a bike, and I'll give you "
-                + "the closest station to you with bikes available. If you need to change your address, just ask me to add address,"
-                + " and I'll give you a chance to overwrite it.";
+            speechOutput +="Welcome to Bike Share. I have your address on file. You can now ask me, find me a bike, and I'll give you "
+                + "the closest station to you with bikes available. If you need to change your address, you can tell me, change my address,"
+                + " and I'll give you a chance to overwrite it. To repeat this again, just ask me to help.</speak>";
         }
 
         response.tell(
@@ -364,8 +368,8 @@ function handleHelpIntent(intent, session, response) {
     });
 }
 
-function handleAddressQueryIntent(intent, session, response) {
-
+function handleStopIntent(intent, session, response) {
+    response.tell("Goodbye.");
 }
 
 /**

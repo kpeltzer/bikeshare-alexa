@@ -1,9 +1,6 @@
 {
   "intents": [
     {
-        "intent": "GetClosestBikeIntent"
-    },
-    {
         "intent": "AddAddressIntent",
         "slots": [
             {
@@ -16,13 +13,16 @@
         "intent": "FindBikeIntent"
     },
     {
-        "intent": "OverwriteAddressIntent"
+        "intent": "AMAZON.YesIntent"
     },
     {
-        "intent": "KeepAddressIntent"
+        "intent": "AMAZON.NoIntent"
     },
     {
         "intent": "AMAZON.HelpIntent"
+    },
+    {
+        "intent": "AMAZON.StopIntent"
     }
   ]
 }

@@ -22,6 +22,10 @@ AddAddressIntent to add {Address}
 AddAddressIntent to add address
 AddAddressIntent to add my {Address}
 AddAddressIntent to add my address
+AddAddressIntent Three Five Zero fifth avenue one zero one one eight
+AddAddressIntent Change my address
+AddAddressIntent Change address
+AddAddressIntent Change the address
 
 FindBikeIntent find me a bike
 FindBikeIntent find a bike
@@ -39,16 +43,3 @@ FindBikeIntent where are there bikes
 FindBikeIntent where's the closest bike
 FindBikeIntent where is there a bike
 FindBikeIntent where is there a close bike
-
-OverwriteAddressIntent yes
-OverwriteAddressIntent yep
-OverwriteAddressIntent yeah
-OverwriteAddressIntent sure
-OverwriteAddressIntent yes please
-OverwriteAddressIntent affirmative
-
-KeepAddressIntent no
-KeepAddressIntent nope
-KeepAddressIntent no thank you
-KeepAddressIntent not now
-KeepAddressIntent negative
