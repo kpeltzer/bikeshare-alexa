@@ -115,20 +115,20 @@ function handleLaunchRequest(session, response) {
         if (_.isEmpty(address.data.formattedAddress)) {
 
             speechOutput += "Welcome to Bike Share. I currently support City Bike in New York City. There is no address set for your home."
-                + " You can add one by telling me to add an address, followed by your street address and your zipcode.";
+                + " You can add one by telling me, add an address, followed by your street address and your zipcode.";
 
             reprompt += "<speak>Before you find any bikes, you first need to add an address. "
                 + "You can add one by asking me to add address, followed by your street address and your zipcode."
-                + "For example, you can say add address <say-as interpret-as=\"address\">"
+                + "For example, you can say, add address <say-as interpret-as=\"address\">"
                 + "<say-as interpret-as=\"characters\">1234</say-as> Broadway, 10001.</say-as></speak>";
         }
         else {
-            speechOutput += "Welcome to Bike Share. I have your address on file. You can now say, ask bike share to find me a bike."
+            speechOutput += "Welcome to Bike Share. I have your address on file. You can now ask me, find me a bike."
             reprompt +="<speak>Since I have your address on file, you can ask me, find me a bike, and I'll give you "
                 + "the closest station to you with bikes available.";
         }
 
-        response.tell(
+        response.ask(
             {speech: speechOutput},
             {speech: reprompt, type: AlexaSkill.speechOutputType.SSML}
         );
@@ -274,8 +274,6 @@ function handleAddAddressIntent(intent, session, response) {
             address = undefined;
         }
 
-        console.log(address);
-        console.log(intent);
 
         if (_.isUndefined(address) || _.isEmpty(address)) {
             var speech = "<speak>Which address do you want me to add? Tell me the street address," 
@@ -470,7 +468,7 @@ function saveNewAddress (firstAddress, currentAddress, session, response) {
             + firstAddress.formattedAddress + "</say-as>. You can now ask, "
             + "find me a bike.</speak>"
 
-            response.tell({
+            response.ask({
                 speech: speechOutput,
                 type: AlexaSkill.speechOutputType.SSML
             });
