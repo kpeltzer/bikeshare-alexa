@@ -356,16 +356,16 @@ function handleHelpIntent(intent, session, response) {
             speechOutput += "Welcome to Bike Share. I help you find the closest bikes in your local bike share system."
                 + " Before you find any bikes, you first need to tell me where this Echo is located."
                 + " You can tell me to add an address, followed by your street address and your zipcode."
-                + " For example, you can say add address <break time=\"300ms\"/><say-as interpret-as=\"address\">"
+                + " For example, you can say, add address <break time=\"300ms\"/><say-as interpret-as=\"address\">"
                 + "<say-as interpret-as=\"characters\">1234</say-as> Broadway, 10001.</say-as></speak>";
         }
         else {
             speechOutput +="Welcome to Bike Share. I have your address on file. You can now ask me, find me a bike, and I'll give you "
                 + "the closest station to you with bikes available. If you need to change your address, you can tell me, change my address,"
-                + " and I'll give you a chance to overwrite it. To repeat this again, just ask me to help.</speak>";
+                + " and I'll give you a chance to overwrite it. To repeat this again, just say, help.</speak>";
         }
 
-        response.tell(
+        response.ask(
             {speech: speechOutput, type: AlexaSkill.speechOutputType.SSML}
         );
 
