@@ -97,6 +97,9 @@ Bikeshare.prototype.intentHandlers = {
     },
     "AMAZON.StopIntent": function (intent, session, response) {
         handleStopIntent(intent, session, response);
+    },
+    "AMAZON.CancelIntent": function (intent, session, response) {
+        handleStopIntent(intent, session, response);
     }
 };
 
@@ -276,8 +279,7 @@ function handleAddAddressIntent(intent, session, response) {
 
 
         if (_.isUndefined(address) || _.isEmpty(address)) {
-            var speech = "<speak>Which address do you want me to add? Tell me the street address," 
-                + " followed by the zipcode.</speak>";
+            var speech = "<speak>Which address do you want me to add? First, tell me the house number of your address.</speak>";
 
             //Empty out any potentially overwritten addresses
             session.attributes.overwrittenAddress = undefined;
@@ -355,7 +357,7 @@ function handleHelpIntent(intent, session, response) {
 
             speechOutput += "Welcome to Bike Share. I help you find the closest bikes in your local bike share system."
                 + " Before you find any bikes, you first need to tell me where this Echo is located."
-                + " You can tell me to add an address, followed by your street address and your zipcode."
+                + " You can start by telling me to add an address, followed by your street address and your zipcode."
                 + " For example, you can say, add address <break time=\"300ms\"/><say-as interpret-as=\"address\">"
                 + "<say-as interpret-as=\"characters\">1234</say-as> Broadway, 10001.</say-as></speak>";
         }
