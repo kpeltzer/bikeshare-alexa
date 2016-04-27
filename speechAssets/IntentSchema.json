@@ -1,11 +1,23 @@
 {
   "intents": [
     {
-        "intent": "AddAddressIntent",
+        "intent": "AddAddressIntent"
+    },
+    {
+        "intent": "AddNumberIntent",
         "slots": [
             {
-                "name": "Address",
-                "type": "ADDRESS"
+                "name": "Number",
+                "type": "Number"
+            }
+        ]
+    },
+    {
+        "intent": "AddStreetNameIntent",
+        "slots": [
+            {
+                "name": "StreetName",
+                "type": "STREETNAME"
             }
         ]
     },

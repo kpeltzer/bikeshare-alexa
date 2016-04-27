@@ -1,36 +1,20 @@
-AddAddressIntent add address {Address}
-AddAddressIntent add a address {Address}
-AddAddressIntent add an address {Address}
-AddAddressIntent add this address {Address}
-AddAddressIntent add my address {Address}
 AddAddressIntent add address
 AddAddressIntent add an address
 AddAddressIntent add a address
 AddAddressIntent add my address
-AddAddressIntent save address {Address}
-AddAddressIntent save a address {Address}
-AddAddressIntent save an address {Address}
-AddAddressIntent save this address {Address}
-AddAddressIntent save my address {Address}
 AddAddressIntent save address
 AddAddressIntent save an address
 AddAddressIntent save a address
 AddAddressIntent save my address
-AddAddressIntent {Address}
-AddAddressIntent add {Address}
-AddAddressIntent to add {Address}
 AddAddressIntent to add address
-AddAddressIntent to add my {Address}
 AddAddressIntent to add my address
 AddAddressIntent Change my address
 AddAddressIntent Change address
 AddAddressIntent Change the address
-AddAddressIntent Change my address to {Address}
-AddAddressIntent Change address to {Address}
-AddAddressIntent Change the address to {Address}
-AddAddressIntent Change my address {Address}
-AddAddressIntent Change address {Address}
-AddAddressIntent Change the address {Address}
+
+AddNumberIntent {AMAZON.NUMBER}
+
+AddStreetNameIntent {StreetName}
 
 FindBikeIntent find me a bike
 FindBikeIntent find a bike

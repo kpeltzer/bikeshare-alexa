@@ -32,6 +32,8 @@ var SYSTEM_LOCALES = {
         'Bronx County'
     ]
 };
+
+var stationPromise;
     
 //Required Modules
 var http = require('http'),
@@ -86,6 +88,12 @@ Bikeshare.prototype.intentHandlers = {
     "AddAddressIntent" : function (intent, session, response) {
         handleAddAddressIntent(intent, session, response);
     },
+    "AddNumberIntent" : function (intent, session, response) {
+        handleAddNumberIntent(intent, session, response);
+    },
+    "AddStreetNameIntent" : function (intent, session, response) {
+        handleAddStreetNameIntent(intent, session, response);
+    },
     "AMAZON.YesIntent" : function (intent, session, response) {
         handleOverwriteAddressIntent(intent, session, response);
     },
@@ -117,22 +125,25 @@ function handleLaunchRequest(session, response) {
         //TODO: Do a reprompt here
         if (_.isEmpty(address.data.formattedAddress)) {
 
-            speechOutput += "Welcome to Bike Share. I currently support City Bike in New York City. There is no address set for your home."
-                + " You can add one by telling me, add an address, followed by your street address and your zipcode.";
+            speechOutput += "<speak>Welcome to Bike Share. I currently support City Bike in New York City. There is no address set for your home."
+                + " You can add one by telling me, add an address, and I'll prompt you with the next steps from there.</speak>";
 
             reprompt += "<speak>Before you find any bikes, you first need to add an address. "
-                + "You can add one by asking me to add address, followed by your street address and your zipcode."
-                + "For example, you can say, add address <say-as interpret-as=\"address\">"
-                + "<say-as interpret-as=\"characters\">1234</say-as> Broadway, 10001.</say-as></speak>";
+                + "You can add one by asking me to add address, where I'll prompt you step-by-step to add one. " 
+                + "First, I'll ask for your house number. If my address was <say-as interpret-as=\"characters\">1234</say-as> Broadway, <say-as interpret-as=\"characters\">10001</say-as>, "
+                + "you would say, <say-as interpret-as=\"characters\">1234</say-as> for the house number. Next I'll ask for your street number. In this example instance,"
+                + " it would just be, Broadway. Finally, I'll ask for your zipcode. With my example address, it would be <say-as interpret-as=\"characters\">10001</say-as></speak>.";        
         }
         else {
-            speechOutput += "Welcome to Bike Share. I have your address on file. You can now ask me, find me a bike."
+            speechOutput += "<speak>Welcome to Bike Share. I have your address on file. You can now ask me, find me a bike.</speak>"
             reprompt +="<speak>Since I have your address on file, you can ask me, find me a bike, and I'll give you "
                 + "the closest station to you with bikes available.";
         }
 
+        console.log(speechOutput);
+
         response.ask(
-            {speech: speechOutput},
+            {speech: speechOutput, type: AlexaSkill.speechOutputType.SSML},
             {speech: reprompt, type: AlexaSkill.speechOutputType.SSML}
         );
 
@@ -158,12 +169,10 @@ function handleFindBikeIntent(intent, session, response) {
         if (_.isEmpty(address.data.formattedAddress)) {
 
             speechOutput += "Welcome to bike share. There is currently no address set for your home."
-                + " You can add one by asking me to add an address, followed by your street address and your zipcode.</speak>";
+                + " You can add one by asking me to add an address.</speak>";
 
             reprompt += "<speak>Before you find any bikes, you first need to add an address. "
-                + "You can add one by asking me to add address, followed by your street address and your zipcode."
-                + "For example, you can say add address <say-as interpret-as=\"address\">"
-                + "1234 Broadway, 10001.</say-as></speak>";
+                + "You can add one by asking me to add address, and I'll prompt you along the way to add one.";
 
             response.tell(
                 {speech: speechOutput, type: AlexaSkill.speechOutputType.SSML},
@@ -247,55 +256,57 @@ function handleAddAddressIntent(intent, session, response) {
     storage.loadAddress(session, function(currentAddress) {
 
         var address,
-            overwrittenAddress = _.get(session, "attributes.overwrittenAddress"),
-            promptToOverwrite = _.get(session, "attributes.promptToOverwrite"),
-            slotAddress = _.get(intent, "slots.Address.value");
+            currentAddress = _.get(currentAddress, 'data.formattedAddress'),
+            speech;
 
         /** If an address is already saved for the user, we'll prompt
         to overwrite.  */
-        if (currentAddress.data.formattedAddress && !promptToOverwrite) {
+        if (!_.isEmpty(currentAddress)) {
 
             session.attributes.promptToOverwrite = true;
 
-            if (slotAddress) {
-                session.attributes.overwrittenAddress = slotAddress;
-            }
-
             response.ask("Looks like you already have an address saved."
                 + " Do you want to overwrite it?");
-
-            return false;
         }
 
-        if (overwrittenAddress) {
-            address = session.attributes.overwrittenAddress;
-        }
-        else if (slotAddress) {
-            address = slotAddress;
-        }
-        else {
-            address = undefined;
-        }
+        speech = "<speak>Which address do you want me to add? First, tell me the house number of your address.</speak>";
+
+        //Empty out any potentially overwritten addresses
+        session.attributes.overwrittenAddress = undefined;
+
+        response.ask({
+            speech: speech,
+            type: AlexaSkill.speechOutputType.SSML
+        });
+
+    });
+
+}
+
+function handleAddNumberIntent(intent, session, response) {
+
+    /*
+    Check if house number is set already in session. If it is,
+    we're adding a zipcode.
+     */
+    var houseNumber = _.get(session, "attributes.houseNumber"),
+        number = _.get(intent, "slots.Number.value"),
+        streetName = _.get(session, "attributes.streetName");
 
 
-        if (_.isUndefined(address) || _.isEmpty(address)) {
-            var speech = "<speak>Which address do you want me to add? First, tell me the house number of your address.</speak>";
+    if (_.isUndefined(houseNumber) && number) {
+        session.attributes.houseNumber = number;
 
-            //Empty out any potentially overwritten addresses
-            session.attributes.overwrittenAddress = undefined;
-
-            response.ask({
-                speech: speech,
-                type: AlexaSkill.speechOutputType.SSML
-            });
-
-            return false;
-        }
-        
-        //Use Google Geocode service to attach a latitude/longitude
-        geocoder.geocode(address)
-            .then(function(res) {
-
+        response.ask("Great. Now, tell me your street name.");
+    }
+    //Street Name wasn't properly given before zipcode
+    else if(!streetName) {
+        response.ask("Sorry, you gave me a zipcode before your street name. Please try giving me your street name again;" +
+        " for example, Broadway, or 57th Street.");
+    }
+    else {
+        storage.loadAddress(session, function(currentAddress) {
+            lookupAddress(houseNumber, streetName, number, function(res) {
                 var address = res[0];
 
                 if (!address.administrativeLevels) {
@@ -309,24 +320,33 @@ function handleAddAddressIntent(intent, session, response) {
 
                 if (!addressInLocale) {
                     console.log("Address Error:" + address);
-                    response.tell("Sorry, this service is currently only available"
+                    response.tell("Sorry, you gave me an address that isn't quite ready for this service yet. Bike Share is only availble"
                         + " for City Bike in New York City. Stay tuned for more Bike Share systems soon."
                     );
 
                     return false;
                 }
-    
+
                 saveNewAddress(address, currentAddress, session, response);
-            })
-            .catch(function(err) {
-                console.log(err);
-                response.tell("Sorry, I'm unable to lookup your address."
-                    + " Please try again."
-                );
-
             });
+        });
+    }
 
-    });
+
+}
+
+function handleAddStreetNameIntent(intent, session, response) {
+
+    var houseNumber = _.get(session, "attributes.houseNumber"),
+        streetName = _.get(intent, "slots.StreetName.value");
+
+    if (!houseNumber) {
+        response.ask("You've given me a street name without a house number. What is your house number?");
+    }
+    else {
+        session.attributes.streetName = streetName;
+        response.ask("Thanks. Now, finally, what is your zipcode?");
+    }
 
 }
 
@@ -339,8 +359,7 @@ function handleOverwriteAddressIntent(intent, session, response) {
         return false;
     }
 
-    //Call the original function to save an address
-    handleAddAddressIntent(intent, session, response);
+    response.ask("Ok, lets overwrite. First, tell me the house number of your address.");
 }
 
 function handleKeepAddressIntent(intent, session, response) {
@@ -356,10 +375,11 @@ function handleHelpIntent(intent, session, response) {
         if (_.isEmpty(address.data.formattedAddress)) {
 
             speechOutput += "Welcome to Bike Share. I help you find the closest bikes in your local bike share system."
-                + " Before you find any bikes, you first need to tell me where this Echo is located."
-                + " You can start by telling me to add an address, followed by your street address and your zipcode."
-                + " For example, you can say, add address <break time=\"300ms\"/><say-as interpret-as=\"address\">"
-                + "<say-as interpret-as=\"characters\">1234</say-as> Broadway, 10001.</say-as></speak>";
+                + " Before you find any bikes, you first need to tell me where this Echo is located. "
+                + "You can add one by asking me to add address, where I'll prompt you step-by-step to add one. " 
+                + "First, I'll ask for your house number. If my address was <say-as interpret-as=\"characters\">1234</say-as> Broadway, <say-as interpret-as=\"characters\">10001</say-as>,"
+                + "you would say, <say-as interpret-as=\"characters\">1234</say-as>. Next I'll ask for you street number. In this instance,"
+                + " it would just be, Broadway. Finally, I'll ask for your zipcode. With my address, it would be <say-as interpret-as=\"characters\">10001</say-as>.</speak>";   
         }
         else {
             speechOutput +="Welcome to Bike Share. I have your address on file. You can now ask me, find me a bike, and I'll give you "
@@ -444,6 +464,23 @@ function getStationFeed () {
     });
 
     return stationPromise;
+}
+
+function lookupAddress(houseNumber, streetName, zipcode, callback) {
+
+    //First, form the address string.
+    var address = houseNumber + " " + streetName + " " + zipcode;
+
+    //Use Google Geocode service to attach a latitude/longitude
+    geocoder.geocode(address)
+        .then(callback)
+        .catch(function(err) {
+            console.log(err);
+            response.tell("Sorry, I'm unable to lookup your address."
+                + " Please try again."
+            );
+
+        });
 }
 
 function saveNewAddress (firstAddress, currentAddress, session, response) {
