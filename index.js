@@ -137,7 +137,7 @@ function handleLaunchRequest(session, response) {
         else {
             speechOutput += "<speak>Welcome to Bike Share. I have your address on file. You can now ask me, find me a bike.</speak>"
             reprompt +="<speak>Since I have your address on file, you can ask me, find me a bike, and I'll give you "
-                + "the closest station to you with bikes available.";
+                + "the closest station to you with bikes available.</speak>";
         }
 
         console.log(speechOutput);
