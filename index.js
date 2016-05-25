@@ -36,8 +36,7 @@ var SYSTEM_LOCALES = {
 var stationPromise;
     
 //Required Modules
-var http = require('http'),
-    https = require('https'),
+var request = require('request');
     rp = require('request-promise'),
     storage = require('./storage'),
     geocoder = require('node-geocoder')('google',undefined,geocodeConfig),
@@ -132,15 +131,13 @@ function handleLaunchRequest(session, response) {
                 + "You can add one by asking me to add address, where I'll prompt you step-by-step to add one. " 
                 + "First, I'll ask for your house number. If my address was <say-as interpret-as=\"characters\">1234</say-as> Broadway, <say-as interpret-as=\"characters\">10001</say-as>, "
                 + "you would say, <say-as interpret-as=\"characters\">1234</say-as> for the house number. Next I'll ask for your street number. In this example instance,"
-                + " it would just be, Broadway. Finally, I'll ask for your zipcode. With my example address, it would be <say-as interpret-as=\"characters\">10001</say-as></speak>.";        
+                + " it would just be, Broadway. Finally, I'll ask for your zipcode. With my example address, it would be <say-as interpret-as=\"characters\">10001</say-as></speak>";        
         }
         else {
             speechOutput += "<speak>Welcome to Bike Share. I have your address on file. You can now ask me, find me a bike.</speak>"
             reprompt +="<speak>Since I have your address on file, you can ask me, find me a bike, and I'll give you "
                 + "the closest station to you with bikes available.</speak>";
         }
-
-        console.log(speechOutput);
 
         response.ask(
             {speech: speechOutput, type: AlexaSkill.speechOutputType.SSML},
@@ -164,17 +161,17 @@ function handleFindBikeIntent(intent, session, response) {
             bikesAvailable = false,
             bikeWord,
             speechOutput = "<speak>",
-            reprompt
+            reprompt = "<speak>";
 
         if (_.isEmpty(address.data.formattedAddress)) {
 
-            speechOutput += "Welcome to bike share. There is currently no address set for your home."
+            speechOutput += "There is currently no address set for your home."
                 + " You can add one by asking me to add an address.</speak>";
 
-            reprompt += "<speak>Before you find any bikes, you first need to add an address. "
-                + "You can add one by asking me to add address, and I'll prompt you along the way to add one.";
+            reprompt += "Before you find any bikes, you first need to add an address. "
+                + "You can add one by asking me to add an address, and I'll prompt you along the way to add one.</speak>";
 
-            response.tell(
+            response.ask(
                 {speech: speechOutput, type: AlexaSkill.speechOutputType.SSML},
                 {speech: reprompt, type: AlexaSkill.speechOutputType.SSML}
             );
@@ -304,6 +301,7 @@ function handleAddNumberIntent(intent, session, response) {
         response.ask("Sorry, you gave me a zipcode before your street name. Please try giving me your street name again;" +
         " for example, Broadway, or 57th Street.");
     }
+    //Number was a zipcode
     else {
         storage.loadAddress(session, function(currentAddress) {
             lookupAddress(houseNumber, streetName, number, function(res) {
@@ -442,23 +440,21 @@ function getClosestStations(stations, lat, long) {
 //Eventually cache at elasticache
 function getStationFeed () {
 
-    var endpoint = 'http://www.citibikenyc.com/stations/json';
+    var endpoint = 'https://feeds.citibikenyc.com/stations/stations.json';
 
     var stationPromise = new Promise(function(resolve, reject) {
 
-        http.get(endpoint, function (res) {
-            var response = ''
-            res.on('data', function (data) {
-                response += data;
-            })
+        request.get(endpoint, function (err, res, body) {
 
-            res.on('end', function () {
-                stations = JSON.parse(response);
-                resolve(stations.stationBeanList);
-            });
+            console.log(body);
 
-        }).on('error', function (e) {
-            reject(e);
+            if (err) {
+                reject(err);
+            }
+
+            stations = JSON.parse(body);
+            console.log(stations);
+            resolve(stations.stationBeanList);
         });
 
     });
@@ -559,5 +555,7 @@ exports.handler = function (event, context) {
     var bikeshare = new Bikeshare();
     bikeshare.execute(event, context);
 };
+
+
 
 
