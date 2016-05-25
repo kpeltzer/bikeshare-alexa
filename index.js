@@ -446,14 +446,11 @@ function getStationFeed () {
 
         request.get(endpoint, function (err, res, body) {
 
-            console.log(body);
-
             if (err) {
                 reject(err);
             }
 
             stations = JSON.parse(body);
-            console.log(stations);
             resolve(stations.stationBeanList);
         });
 
